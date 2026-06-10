@@ -3,22 +3,25 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Resp
 
 const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f43f5e', '#f59e0b'];
 
-export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
+export default function ExtendedAnalytics({ poles, isDarkMode }) {
   const chartData = useMemo(() => {
     if (!poles.length) return { line: [], pie: [], bar: [] };
     
+    // 1. Line Chart Data (Faults per Zone)
     const zones = {};
     poles.forEach(p => {
       zones[p.area] = (zones[p.area] || 0) + (p.status === "Faulty" ? 1 : 0);
     });
     const line = Object.keys(zones).map(key => ({ zone: key, Faults: zones[key] }));
 
+    // 2. Pie Chart Data (Fault Type Breakdown)
     const faults = {};
     poles.filter(p => p.status === "Faulty").forEach(p => {
       faults[p.faultType] = (faults[p.faultType] || 0) + 1;
     });
     const pie = Object.keys(faults).map(key => ({ name: key, value: faults[key] }));
 
+    // 3. Bar Chart Data (Average Uptime per Zone)
     const uptimeZones = {};
     poles.forEach(p => {
       if (!uptimeZones[p.area]) uptimeZones[p.area] = { sum: 0, count: 0 };
@@ -40,6 +43,7 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Chart 1: Fault Type Breakdown (Pie) */}
       <div className={`p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
         <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Fault Type Distribution</h3>
         <div className="flex-1 w-full">
@@ -59,6 +63,7 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
         </div>
       </div>
 
+      {/* Chart 2: Average Uptime (Bar) */}
       <div className={`p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
         <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Average Uptime by Zone</h3>
         <div className="flex-1 w-full text-xs">
@@ -66,14 +71,15 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
             <BarChart data={chartData.bar} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis dataKey="zone" stroke={textColor} tickLine={false} axisLine={false} />
-              <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={[0, 100]} />
+              <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={} />
               <Tooltip cursor={{ fill: isDarkMode ? '#1e293b' : '#f1f5f9' }} contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
-              <Bar dataKey="Uptime" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+              <Bar dataKey="Uptime" fill="#3b82f6" radius={} barSize={30} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
+      {/* Chart 3: Zonal Disruption Trend (Line) - Spans both columns */}
       <div className={`lg:col-span-2 p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
         <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Zonal Disruption Analytics</h3>
         <div className="flex-1 w-full text-xs">
