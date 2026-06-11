@@ -1,25 +1,26 @@
 import { useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Legend } from 'recharts';
 
-const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f43f5e', '#f59e0b'];
+const COLORS = ['#10b981', '#f43f5e']; 
 
 export default function ExtendedAnalytics({ poles, isDarkMode }) {
   const chartData = useMemo(() => {
     if (!poles.length) return { line: [], pie: [], bar: [] };
     
-    // 1. Line Chart Data (Faults per Zone)
+    // 1. Line Chart Data (Offline Nodes per Zone)
     const zones = {};
     poles.forEach(p => {
-      zones[p.area] = (zones[p.area] || 0) + (p.status === "Faulty" ? 1 : 0);
+      zones[p.area] = (zones[p.area] || 0) + (p.status === "Down" ? 1 : 0);
     });
     const line = Object.keys(zones).map(key => ({ zone: key, Faults: zones[key] }));
 
-    // 2. Pie Chart Data (Fault Type Breakdown)
-    const faults = {};
-    poles.filter(p => p.status === "Faulty").forEach(p => {
-      faults[p.faultType] = (faults[p.faultType] || 0) + 1;
-    });
-    const pie = Object.keys(faults).map(key => ({ name: key, value: faults[key] }));
+    // 2. Pie Chart Data (Status Breakdown)
+    const upCount = poles.filter(p => p.status === "Up").length;
+    const downCount = poles.filter(p => p.status === "Down").length;
+    const pie = [
+      { name: 'Operational (Up)', value: upCount },
+      { name: 'Offline (Down)', value: downCount }
+    ];
 
     // 3. Bar Chart Data (Average Uptime per Zone)
     const uptimeZones = {};
@@ -43,9 +44,9 @@ export default function ExtendedAnalytics({ poles, isDarkMode }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Chart 1: Fault Type Breakdown (Pie) */}
+      {/* Chart 1: Status Breakdown (Pie) */}
       <div className={`p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
-        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Fault Type Distribution</h3>
+        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Network Health</h3>
         <div className="flex-1 w-full">
           {chartData.pie.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -71,17 +72,19 @@ export default function ExtendedAnalytics({ poles, isDarkMode }) {
             <BarChart data={chartData.bar} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis dataKey="zone" stroke={textColor} tickLine={false} axisLine={false} />
+              {/* FIXED */}
               <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={} />
               <Tooltip cursor={{ fill: isDarkMode ? '#1e293b' : '#f1f5f9' }} contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
+              {/* FIXED */}
               <Bar dataKey="Uptime" fill="#3b82f6" radius={} barSize={30} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Chart 3: Zonal Disruption Trend (Line) - Spans both columns */}
+      {/* Chart 3: Zonal Disruption Trend (Line) */}
       <div className={`lg:col-span-2 p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
-        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Zonal Disruption Analytics</h3>
+        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Offline Nodes Analytics</h3>
         <div className="flex-1 w-full text-xs">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData.line} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>

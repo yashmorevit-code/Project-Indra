@@ -9,7 +9,6 @@ export default function PoleDetailCard({ pole, onClose, isDarkMode }) {
 
   return (
     <div className={`p-4 rounded-xl border relative transition-colors duration-300 ${bgTheme}`}>
-      {/* Close Button */}
       <button 
         onClick={onClose}
         className={`absolute top-3 right-3 p-1 rounded-md transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}
@@ -36,11 +35,12 @@ export default function PoleDetailCard({ pole, onClose, isDarkMode }) {
         </div>
         <div className="flex justify-between">
           <span className={textSecondary}>Status</span>
-          <span className={pole.status === "Working" ? "text-emerald-500 font-bold" : "text-rose-500 font-bold"}>{pole.status}</span>
+          {/* UPDATED: Syncing with "Up" and "Down" data */}
+          <span className={pole.status === "Up" ? "text-emerald-500 font-bold" : "text-rose-500 font-bold"}>{pole.status}</span>
         </div>
         <div className="flex justify-between">
-          <span className={textSecondary}>Fault Type</span>
-          <span className={`font-medium ${textPrimary}`}>{pole.faultType}</span>
+          <span className={textSecondary}>Uptime</span>
+          <span className={`font-medium ${textPrimary}`}>{pole.uptime}%</span>
         </div>
         <div className="flex justify-between pt-1">
           <span className={textSecondary}>Last Update</span>
@@ -50,7 +50,7 @@ export default function PoleDetailCard({ pole, onClose, isDarkMode }) {
       
       <div className="mt-4 pt-3 border-t border-slate-500/20">
         <button className="text-indigo-500 hover:text-indigo-600 font-medium flex items-center gap-1 transition-colors text-xs">
-          View Details &rarr;
+          View Raw Payload &rarr;
         </button>
       </div>
     </div>

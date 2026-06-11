@@ -2,14 +2,15 @@ import { Lightbulb, CheckCircle2, AlertTriangle, Activity } from 'lucide-react';
 
 export default function StatsOverview({ poles, isDarkMode }) {
   const total = poles.length;
-  const working = poles.filter(p => p.status === "Working").length;
-  const faulty = poles.filter(p => p.status === "Faulty").length;
+  // UPDATED: Syncing with "Up" and "Down" data
+  const working = poles.filter(p => p.status === "Up").length;
+  const faulty = poles.filter(p => p.status === "Down").length;
   const networkHealth = total > 0 ? ((working / total) * 100).toFixed(1) : 0;
 
   const metrics = [
     { title: "TOTAL STREETLIGHTS", value: total, sub: "All Streetlights", icon: <Lightbulb size={24} className="text-purple-500" />, iconBg: "bg-purple-500/10" },
     { title: "WORKING LIGHTS", value: working, sub: `${networkHealth}% Operational`, icon: <CheckCircle2 size={24} className="text-emerald-500" />, iconBg: "bg-emerald-500/10", textCol: "text-emerald-500" },
-    { title: "FAULTY LIGHTS", value: faulty, sub: "Needs Attention", icon: <AlertTriangle size={24} className="text-rose-500" />, iconBg: "bg-rose-500/10", textCol: "text-rose-500" },
+    { title: "OFFLINE LIGHTS", value: faulty, sub: "Needs Attention", icon: <AlertTriangle size={24} className="text-rose-500" />, iconBg: "bg-rose-500/10", textCol: "text-rose-500" },
     { title: "AVERAGE UPTIME", value: "97.5%", sub: "This Month", icon: <Activity size={24} className="text-blue-500" />, iconBg: "bg-blue-500/10", textCol: "text-blue-500" },
   ];
 

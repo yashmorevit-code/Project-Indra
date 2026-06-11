@@ -1,23 +1,18 @@
 import { useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Legend } from 'recharts';
 
-const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f43f5e', '#f59e0b'];
+const COLORS = ['#10b981', '#f43f5e']; 
 
 export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
   const chartData = useMemo(() => {
     if (!poles.length) return { line: [], pie: [], bar: [] };
     
-    const zones = {};
-    poles.forEach(p => {
-      zones[p.area] = (zones[p.area] || 0) + (p.status === "Faulty" ? 1 : 0);
-    });
-    const line = Object.keys(zones).map(key => ({ zone: key, Faults: zones[key] }));
-
-    const faults = {};
-    poles.filter(p => p.status === "Faulty").forEach(p => {
-      faults[p.faultType] = (faults[p.faultType] || 0) + 1;
-    });
-    const pie = Object.keys(faults).map(key => ({ name: key, value: faults[key] }));
+    const upCount = poles.filter(p => p.status === "Up").length;
+    const downCount = poles.filter(p => p.status === "Down").length;
+    const pie = [
+      { name: 'Operational (Up)', value: upCount },
+      { name: 'Offline (Down)', value: downCount }
+    ];
 
     const uptimeZones = {};
     poles.forEach(p => {
@@ -30,6 +25,12 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
       Uptime: parseFloat((uptimeZones[key].sum / uptimeZones[key].count).toFixed(1))
     }));
 
+    const zones = {};
+    poles.forEach(p => {
+      zones[p.area] = (zones[p.area] || 0) + (p.status === "Down" ? 1 : 0);
+    });
+    const line = Object.keys(zones).map(key => ({ zone: key, OfflineNodes: zones[key] }));
+
     return { line, pie, bar };
   }, [poles]);
 
@@ -41,21 +42,17 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className={`p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
-        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Fault Type Distribution</h3>
+        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Current Network Status</h3>
         <div className="flex-1 w-full">
-          {chartData.pie.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={chartData.pie} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                  {chartData.pie.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', color: textColor }} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center text-emerald-500 font-medium text-sm">No Faults Detected! 🎉</div>
-          )}
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={chartData.pie} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                {chartData.pie.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', color: textColor }} />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -75,7 +72,7 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
       </div>
 
       <div className={`lg:col-span-2 p-5 rounded-xl border h-[300px] flex flex-col transition-colors ${cardBg}`}>
-        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Zonal Disruption Analytics</h3>
+        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>Offline Nodes Per Zone</h3>
         <div className="flex-1 w-full text-xs">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData.line} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
@@ -83,7 +80,7 @@ export default function AnalyticsPanel({ isDarkMode, poles = [] }) {
               <XAxis dataKey="zone" stroke={textColor} tickLine={false} axisLine={false} />
               <YAxis stroke={textColor} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
-              <Line type="monotone" dataKey="Faults" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: isDarkMode ? '#0f172a' : '#fff' }} />
+              <Line type="monotone" dataKey="OfflineNodes" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4, fill: '#f43f5e', strokeWidth: 2, stroke: isDarkMode ? '#0f172a' : '#fff' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

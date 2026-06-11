@@ -42,7 +42,8 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
           </button>
         </div>
         
-        <nav className="flex-1 space-y-1.5 px-3 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {/* INCREASED PADDING HERE: px-3 -> px-5 */}
+        <nav className="flex-1 space-y-1.5 px-5 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {menuItems.map((item) => {
             const isActive = activeView === item.label;
             return (
@@ -105,7 +106,8 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
           </div>
         </nav>
 
-        <div className={`p-4 m-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-[#111827] border-slate-800/50 shadow-lg' : 'bg-slate-50 border-slate-200'}`}>
+        {/* FIXED ALIGNMENT FOR WIDGET: mx-5 mb-5 */}
+        <div className={`p-4 mx-5 mb-5 rounded-xl border transition-colors ${isDarkMode ? 'bg-[#111827] border-slate-800/50 shadow-lg' : 'bg-slate-50 border-slate-200'}`}>
           <div className="flex items-center gap-3 mb-3">
               <CloudRain size={26} className="text-blue-500" />
               <div>

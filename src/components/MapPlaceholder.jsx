@@ -4,17 +4,14 @@ import { Plus, Minus, Crosshair } from 'lucide-react';
 export default function MapPlaceholder({ poles, isDarkMode, selectedPole, setSelectedPole }) {
   const mapRef = useRef(null);
   
-  // Interactive Map States
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Auto-Focus Logic: Centers map when a single pole is filtered
   useEffect(() => {
     if (poles.length === 1) {
       setZoom(1.8);
-      // Rough offset calculation to bring the pole towards the center
       setPan({ x: (50 - poles.baseLeft) * 5, y: (50 - poles.baseTop) * 3 });
       setSelectedPole(poles);
     } else if (poles.length > 1) {
@@ -23,12 +20,10 @@ export default function MapPlaceholder({ poles, isDarkMode, selectedPole, setSel
     }
   }, [poles, setSelectedPole]);
 
-  // Controls
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.3, 3));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.3, 0.5));
   const handleReset = () => { setZoom(1); setPan({ x: 0, y: 0 }); setSelectedPole(null); };
 
-  // Mouse Dragging Logic
   const handleMouseDown = (e) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -39,7 +34,6 @@ export default function MapPlaceholder({ poles, isDarkMode, selectedPole, setSel
   };
   const handleMouseUp = () => setIsDragging(false);
 
-  // Mobile Touch Swiping Logic
   const handleTouchStart = (e) => {
     setIsDragging(true);
     setDragStart({ x: e.touches.clientX - pan.x, y: e.touches.clientY - pan.y });
@@ -49,7 +43,6 @@ export default function MapPlaceholder({ poles, isDarkMode, selectedPole, setSel
     setPan({ x: e.touches.clientX - dragStart.x, y: e.touches.clientY - dragStart.y });
   };
 
-  // Keyboard Navigation Logic
   const handleKeyDown = (e) => {
     const step = 20;
     if (e.key === 'ArrowUp') setPan(p => ({ ...p, y: p.y + step }));
@@ -73,7 +66,6 @@ export default function MapPlaceholder({ poles, isDarkMode, selectedPole, setSel
         <p className="text-[10px] text-slate-500 hidden md:block">Use Arrow Keys or Drag to pan</p>
       </div>
       
-      {/* Interactive Map Area */}
       <div 
         ref={mapRef}
         tabIndex={0}
@@ -99,19 +91,19 @@ export default function MapPlaceholder({ poles, isDarkMode, selectedPole, setSel
               className="absolute transition-transform hover:scale-110 cursor-pointer flex flex-col items-center z-20"
               style={{ left: `${pole.baseLeft}%`, top: `${pole.baseTop}%` }}
               onClick={(e) => {
-                e.stopPropagation(); // Prevents drag click conflicts
+                e.stopPropagation(); 
                 setSelectedPole(selectedPole?.id === pole.id ? null : pole);
               }}
             >
+              {/* UPDATED: Match Up / Down Status */}
               <div className={`h-4 w-4 rounded-full border-2 ${isDarkMode ? 'border-[#0A0F1C]' : 'border-white'} ${
-                pole.status === "Working" ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
+                pole.status === "Up" ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
               } ${selectedPole?.id === pole.id ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}></div>
               <span className={`text-[9px] mt-1 font-mono font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{pole.id}</span>
             </div>
           ))}
         </div>
 
-        {/* Floating Controls */}
         <div className="absolute right-4 bottom-4 flex flex-col gap-2 z-30">
             <button onClick={handleZoomIn} className={`p-1.5 rounded-md border shadow-sm ${isDarkMode ? 'bg-[#1e293b] border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'}`}><Plus size={14}/></button>
             <button onClick={handleZoomOut} className={`p-1.5 rounded-md border shadow-sm ${isDarkMode ? 'bg-[#1e293b] border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'}`}><Minus size={14}/></button>
