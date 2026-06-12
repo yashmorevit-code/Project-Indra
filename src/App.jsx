@@ -42,7 +42,7 @@ export default function App() {
   const [trafficData, setTrafficData] = useState({ count: 0, density: 1 });
 
   const [tsChannel, setTsChannel] = useState(() => localStorage.getItem('tsChannel') || "3404790");
-  const [tsKey, setTsKey] = useState(() => localStorage.getItem('tsKey') || "PBAPC23KVHFVONHY");
+  const [tsKey, setTsKey] = useState(() => localStorage.getItem('tsKey') || "XKQE4UZ44V309M9Y");
   const [isPolling, setIsPolling] = useState(() => localStorage.getItem('isPolling') === 'true');
   const [syncStatus, setSyncStatus] = useState("Waiting...");
 
@@ -107,7 +107,7 @@ export default function App() {
           }).catch(err => console.error("NeonDB sync error:", err));
 
           const latestFault = faultData.feeds; // <-- RESTORED the index fix!
-          
+
           if (latestFault.entry_id !== lastEntryRef.current) {
             lastEntryRef.current = latestFault.entry_id;
 
@@ -151,10 +151,10 @@ export default function App() {
                     timestamp: new Date(latestFault.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                   })
                 })
-                .then(res => {
-                  if (!res.ok) console.error("Failed to send email alert");
-                })
-                .catch(err => console.error("Error triggering email alert:", err));
+                  .then(res => {
+                    if (!res.ok) console.error("Failed to send email alert");
+                  })
+                  .catch(err => console.error("Error triggering email alert:", err));
               }
 
               setSyncStatus(`Updated ${formattedPoleId} to ${currentStatus}`);
@@ -196,7 +196,7 @@ export default function App() {
     if (isPolling) {
       setSyncStatus("Connecting...");
       pollThingSpeak();
-      intervalId = setInterval(pollThingSpeak, 15000);
+      intervalId = setInterval(pollThingSpeak, 20000);
     } else {
       setSyncStatus("Stopped");
     }

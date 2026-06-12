@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       // Insert fault feeds
       for (const feed of tsData.feeds) {
         if (!feed.field1 || !feed.field2) continue; // Skip incomplete feeds
-        
+
         const createdAt = new Date(feed.created_at).toISOString();
         const poleId = feed.field1.toString().startsWith('P-') ? feed.field1 : `P-${feed.field1}`;
         const statusVal = parseInt(feed.field2);
@@ -74,7 +74,7 @@ export default async function handler(req, res) {
           ON CONFLICT (entry_id) DO NOTHING
           RETURNING entry_id;
         `;
-        
+
         if (result.length > 0) {
           insertedCount++;
         }
