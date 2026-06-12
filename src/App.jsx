@@ -45,11 +45,52 @@ export default function App() {
   const [tsKey, setTsKey] = useState(() => localStorage.getItem('tsKey') || "XKQE4UZ44V309M9Y");
   const [isPolling, setIsPolling] = useState(() => localStorage.getItem('isPolling') === 'true');
   const [syncStatus, setSyncStatus] = useState("Waiting...");
+  const [isTsOffline, setIsTsOffline] = useState(false);
+  const simulatedFeedRef = useRef(null);
+  const [triggerPollCount, setTriggerPollCount] = useState(0);
+
+  const [fakeZonalPoles, setFakeZonalPoles] = useState([
+    { id: "F-N1", status: "Up", area: "North Zone", location: "Main Road", uptime: 98.2, baseLeft: 25, baseTop: 30 },
+    { id: "F-N2", status: "Up", area: "North Zone", location: "MG Road", uptime: 99.1, baseLeft: 40, baseTop: 15 },
+    { id: "F-N3", status: "Down", area: "North Zone", location: "Park Street", uptime: 95.0, baseLeft: 10, baseTop: 45 },
+    { id: "F-S1", status: "Up", area: "South Zone", location: "Station Road", uptime: 97.8, baseLeft: 70, baseTop: 65 },
+    { id: "F-S2", status: "Down", area: "South Zone", location: "Main Road", uptime: 92.4, baseLeft: 85, baseTop: 80 },
+    { id: "F-S3", status: "Up", area: "South Zone", location: "MG Road", uptime: 99.5, baseLeft: 60, baseTop: 75 },
+    { id: "F-C1", status: "Up", area: "Central Zone", location: "Park Street", uptime: 98.9, baseLeft: 45, baseTop: 50 },
+    { id: "F-C2", status: "Up", area: "Central Zone", location: "Station Road", uptime: 99.7, baseLeft: 55, baseTop: 55 },
+    { id: "F-T1", status: "Down", area: "Transit Zone", location: "Main Road", uptime: 89.1, baseLeft: 35, baseTop: 65 },
+    { id: "F-T2", status: "Up", area: "Transit Zone", location: "MG Road", uptime: 97.0, baseLeft: 50, baseTop: 85 }
+  ]);
 
   const lastEntryRef = useRef(null);
   const lastTrafficEntryRef = useRef(null);
 
-  const activeFaultCount = poles.filter(p => p.status === "Down").length;
+  const processedPoles = useMemo(() => {
+    if (isTsOffline) {
+      return poles.map(p => ({ ...p, status: "Down" }));
+    }
+    return poles;
+  }, [poles, isTsOffline]);
+
+  const activeFaultCount = processedPoles.filter(p => p.status === "Down").length;
+
+  const triggerSimulation = (statusVal) => {
+    const nextEntryId = (lastEntryRef.current || 157) + 1;
+    const mockFeed = {
+      channel: { id: parseInt(tsChannel) || 3404790, name: 'Simulated Fault Monitoring' },
+      feeds: [
+        {
+          created_at: new Date().toISOString(),
+          entry_id: nextEntryId,
+          field1: '1',
+          field2: statusVal.toString(),
+          field3: '100'
+        }
+      ]
+    };
+    simulatedFeedRef.current = mockFeed;
+    setTriggerPollCount(prev => prev + 1);
+  };
 
   const handleLogin = async (credentials) => {
     setLoading(true);
@@ -92,9 +133,15 @@ export default function App() {
     const pollThingSpeak = async () => {
       if (!tsChannel || !tsKey) return;
       try {
-        // 1. Fetch Fault Data
-        const faultRes = await fetch(`https://api.thingspeak.com/channels/${tsChannel}/feeds.json?api_key=${tsKey}&results=10`);
-        const faultData = await faultRes.json();
+        // 1. Fetch Fault Data (Use simulated feed if present, otherwise fetch from ThingSpeak)
+        let faultData;
+        if (simulatedFeedRef.current) {
+          faultData = simulatedFeedRef.current;
+          simulatedFeedRef.current = null;
+        } else {
+          const faultRes = await fetch(`https://api.thingspeak.com/channels/${tsChannel}/feeds.json?api_key=${tsKey}&results=10`);
+          faultData = await faultRes.json();
+        }
 
         console.log("ThingSpeak Fault Data:", faultData); // Debug log to inspect the structure
 
@@ -106,9 +153,20 @@ export default function App() {
             body: JSON.stringify({ channelId: tsChannel, apiKey: tsKey, type: 'fault', results: 10 })
           }).catch(err => console.error("NeonDB sync error:", err));
 
-          const latestFault = faultData.feeds; // <-- RESTORED the index fix!
+          const latestFault = faultData.feeds[faultData.feeds.length - 1];
 
-          if (latestFault.entry_id !== lastEntryRef.current) {
+          // Check if data is stale (no new data within 5 minutes)
+          const lastEntryTime = new Date(latestFault.created_at).getTime();
+          const now = Date.now();
+          const isStale = (now - lastEntryTime) > 5 * 60 * 1000;
+          setIsTsOffline(isStale);
+
+          if (isStale) {
+            const minAgo = Math.round((now - lastEntryTime) / 60000);
+            setSyncStatus(`Telemetry Stale: Last data ${minAgo}m ago. All lights offline.`);
+          }
+
+          if (latestFault && latestFault.entry_id !== lastEntryRef.current) {
             lastEntryRef.current = latestFault.entry_id;
 
             const hardwarePoleId = latestFault.field1;
@@ -157,15 +215,22 @@ export default function App() {
                   .catch(err => console.error("Error triggering email alert:", err));
               }
 
-              setSyncStatus(`Updated ${formattedPoleId} to ${currentStatus}`);
+              if (!isStale) {
+                setSyncStatus(`Updated ${formattedPoleId} to ${currentStatus}`);
+              }
             }
           } else {
-            setSyncStatus(`Checked at ${new Date().toLocaleTimeString()} (No changes)`);
+            if (!isStale) {
+              setSyncStatus(`Checked at ${new Date().toLocaleTimeString()} (No changes)`);
+            }
           }
+        } else {
+          setIsTsOffline(true);
+          setSyncStatus("No telemetry data found. All lights offline.");
         }
 
         // 2. Fetch Traffic Data
-        const trafficRes = await fetch(`https://api.thingspeak.com/channels/3405925/feeds.json?api_key=HIG3SCTF2JAF0M4X&results=1`);
+        const trafficRes = await fetch(`https://api.thingspeak.com/channels/3405925/feeds.json?api_key=HIG3SCTF2JAF0M4X&results=10`);
         const trafficFeed = await trafficRes.json();
 
         if (trafficFeed.feeds && trafficFeed.feeds.length > 0) {
@@ -176,9 +241,9 @@ export default function App() {
             body: JSON.stringify({ channelId: '3405925', apiKey: 'HIG3SCTF2JAF0M4X', type: 'traffic', results: 10 })
           }).catch(err => console.error("NeonDB traffic sync error:", err));
 
-          const latestTraffic = trafficFeed.feeds; // <-- RESTORED the index fix!
+          const latestTraffic = trafficFeed.feeds[trafficFeed.feeds.length - 1];
 
-          if (latestTraffic.entry_id !== lastTrafficEntryRef.current) {
+          if (latestTraffic && latestTraffic.entry_id !== lastTrafficEntryRef.current) {
             lastTrafficEntryRef.current = latestTraffic.entry_id;
             setTrafficData({
               count: parseInt(latestTraffic.field1) || 0,
@@ -187,9 +252,21 @@ export default function App() {
           }
         }
 
+        // Randomly update fake zonal data to simulate active nodes in other zones
+        setFakeZonalPoles(prev => prev.map(p => {
+          if (Math.random() > 0.6) {
+            const newStatus = Math.random() > 0.85 ? (p.status === "Up" ? "Down" : "Up") : p.status;
+            const deltaUptime = parseFloat(((Math.random() - 0.5) * 1.5).toFixed(1));
+            const newUptime = Math.min(100, Math.max(75, parseFloat((p.uptime + deltaUptime).toFixed(1))));
+            return { ...p, status: newStatus, uptime: newUptime };
+          }
+          return p;
+        }));
+
       } catch (err) {
         console.error("ThingSpeak fetch error:", err);
-        setSyncStatus("API Connection Error");
+        setIsTsOffline(true);
+        setSyncStatus("API Connection Error. All lights offline.");
       }
     };
 
@@ -199,9 +276,10 @@ export default function App() {
       intervalId = setInterval(pollThingSpeak, 20000);
     } else {
       setSyncStatus("Stopped");
+      setIsTsOffline(false);
     }
     return () => clearInterval(intervalId);
-  }, [isPolling, tsChannel, tsKey]);
+  }, [isPolling, tsChannel, tsKey, triggerPollCount]);
 
   const handleNukeDatabase = async () => {
     if (window.confirm("WARNING: This will permanently delete ALL poles from Firebase. Use this to clear fake data! Proceed?")) {
@@ -221,14 +299,14 @@ export default function App() {
   const resetFilters = () => { setFilters(DEFAULT_FILTERS); setSelectedPole(null); };
 
   const filteredPoles = useMemo(() => {
-    return poles.filter(pole => {
+    return processedPoles.filter(pole => {
       const matchSearch = !filters.search || (pole.id && pole.id.toLowerCase().includes(filters.search.toLowerCase()));
       const matchArea = filters.area === "All Areas" || pole.area === filters.area;
       const matchStreet = filters.street === "All Streets" || pole.location === filters.street;
       const matchStatus = filters.status === "All Status" || pole.status === filters.status;
       return matchSearch && matchArea && matchStreet && matchStatus;
     });
-  }, [filters, poles]);
+  }, [filters, processedPoles]);
 
   const bgTheme = isDarkMode ? 'bg-[#0A0F1C] text-slate-300' : 'bg-slate-50 text-slate-800';
   const headerTheme = isDarkMode ? 'bg-[#111827] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
@@ -260,7 +338,7 @@ export default function App() {
   }
 
   if (user.role === 'employee') {
-    return <EmployeeDashboard user={user} poles={poles} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onLogout={() => setUser(null)} />;
+    return <EmployeeDashboard user={user} poles={processedPoles} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onLogout={() => setUser(null)} />;
   }
 
   return (
@@ -284,15 +362,30 @@ export default function App() {
           </div>
 
           <div className="flex flex-col md:flex-row flex-wrap items-start md:items-center gap-3 sm:gap-4 w-full xl:w-auto justify-end">
-            <div className={`flex flex-wrap sm:flex-nowrap items-center gap-2 px-2.5 py-1.5 rounded-lg border w-full md:w-auto justify-between sm:justify-start ${isDarkMode ? 'bg-[#0A0F1C] border-slate-700' : 'bg-slate-50 border-slate-300'}`}>
-              <div className="flex items-center gap-2">
-                <input type="text" placeholder="Ch ID" value={tsChannel} onChange={(e) => setTsChannel(e.target.value)} className={`w-16 sm:w-20 text-xs bg-transparent focus:outline-none ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`} />
-                <div className="w-px h-3 bg-slate-500/30"></div>
-                <input type="text" placeholder="API Key" value={tsKey} onChange={(e) => setTsKey(e.target.value)} className={`w-24 sm:w-32 text-xs bg-transparent focus:outline-none ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`} />
+            <div className="flex flex-col gap-1 items-end w-full md:w-auto">
+              <div className={`flex flex-wrap sm:flex-nowrap items-center gap-2 px-2.5 py-1.5 rounded-lg border w-full md:w-auto justify-between sm:justify-start ${isDarkMode ? 'bg-[#0A0F1C] border-slate-700' : 'bg-slate-50 border-slate-300'}`}>
+                <div className="flex items-center gap-2">
+                  <input type="text" placeholder="Ch ID" value={tsChannel} onChange={(e) => setTsChannel(e.target.value)} className={`w-16 sm:w-20 text-xs bg-transparent focus:outline-none ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`} />
+                  <div className="w-px h-3 bg-slate-500/30"></div>
+                  <input type="text" placeholder="API Key" value={tsKey} onChange={(e) => setTsKey(e.target.value)} className={`w-24 sm:w-32 text-xs bg-transparent focus:outline-none ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`} />
+                </div>
+                <button onClick={() => setIsPolling(!isPolling)} className={`flex items-center gap-1 px-2 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap ${isPolling ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/30'}`}>
+                  {isPolling ? <><Wifi size={12} className="hidden sm:block" /> Syncing</> : <><CloudOff size={12} className="hidden sm:block" /> Stopped</>}
+                </button>
               </div>
-              <button onClick={() => setIsPolling(!isPolling)} className={`flex items-center gap-1 px-2 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap ${isPolling ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/30'}`}>
-                {isPolling ? <><Wifi size={12} className="hidden sm:block" /> Syncing</> : <><CloudOff size={12} className="hidden sm:block" /> Stopped</>}
-              </button>
+              <span className={`text-[10px] font-semibold tracking-wide transition-colors duration-300 ${isTsOffline ? 'text-rose-500 animate-pulse' : 'text-slate-500'}`}>
+                {syncStatus}
+              </span>
+              {isPolling && (
+                <div className="flex gap-2 mt-1">
+                  <button onClick={() => triggerSimulation(0)} className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-[9px] font-bold uppercase transition-all">
+                    Simulate Up (P-1)
+                  </button>
+                  <button onClick={() => triggerSimulation(1)} className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 text-[9px] font-bold uppercase transition-all">
+                    Simulate Down (P-1)
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-700/50 md:border-transparent">
@@ -373,12 +466,12 @@ export default function App() {
 
         {activeView === "Streetlight Map" && <div className="h-[75vh]"><MapPlaceholder poles={filteredPoles} isDarkMode={isDarkMode} selectedPole={selectedPole} setSelectedPole={setSelectedPole} /></div>}
         {activeView === "Fault Detection" && <FaultPanel poles={filteredPoles} isDarkMode={isDarkMode} />}
-        {activeView === "Alerts" && <AlertsView poles={poles} isDarkMode={isDarkMode} />}
-        {activeView === "Analytics & Charts" && <AnalyticsPanel isDarkMode={isDarkMode} poles={poles} />}
+        {activeView === "Alerts" && <AlertsView poles={processedPoles} isDarkMode={isDarkMode} />}
+        {activeView === "Analytics & Charts" && <AnalyticsPanel isDarkMode={isDarkMode} poles={[...processedPoles, ...fakeZonalPoles]} />}
         {activeView === "Maintenance Logs" && <HistoryPanel history={history} isDarkMode={isDarkMode} />}
         {activeView === "Settings" && <SettingsView isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
-        {activeView === "Uptime Report" && <UptimeReport poles={poles} isDarkMode={isDarkMode} />}
-        {activeView === "Energy Usage" && <EnergyUsage poles={poles} isDarkMode={isDarkMode} />}
+        {activeView === "Uptime Report" && <UptimeReport poles={[...processedPoles, ...fakeZonalPoles]} isDarkMode={isDarkMode} />}
+        {activeView === "Energy Usage" && <EnergyUsage poles={[...processedPoles, ...fakeZonalPoles]} isDarkMode={isDarkMode} />}
 
         <AddPoleModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} isDarkMode={isDarkMode} />
         <CreateEmployeeModal isOpen={isEmployeeModalOpen} onClose={() => setIsEmployeeModalOpen(false)} isDarkMode={isDarkMode} />
