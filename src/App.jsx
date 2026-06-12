@@ -29,7 +29,7 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
-  
+
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [selectedPole, setSelectedPole] = useState(null);
@@ -45,10 +45,10 @@ export default function App() {
   const [tsKey, setTsKey] = useState(() => localStorage.getItem('tsKey') || "PBAPC23KVHFVONHY");
   const [isPolling, setIsPolling] = useState(() => localStorage.getItem('isPolling') === 'true');
   const [syncStatus, setSyncStatus] = useState("Waiting...");
-  
+
   const lastEntryRef = useRef(null);
   const lastTrafficEntryRef = useRef(null);
-  
+
   const activeFaultCount = poles.filter(p => p.status === "Down").length;
 
   const handleLogin = async (credentials) => {
@@ -86,7 +86,7 @@ export default function App() {
     return () => { unsubscribePoles(); unsubscribeHistory(); };
   }, []);
 
-// Dual ThingSpeak Polling Engine (Faults + Traffic)
+  // Dual ThingSpeak Polling Engine (Faults + Traffic)
   useEffect(() => {
     let intervalId;
     const pollThingSpeak = async () => {
@@ -97,29 +97,36 @@ export default function App() {
         const faultData = await faultRes.json();
 
         console.log("ThingSpeak Fault Data:", faultData); // Debug log to inspect the structure
-        
+
         if (faultData.feeds && faultData.feeds.length > 0) {
+          // Sync fault readings to NeonDB
+          fetch('/api/sync-readings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelId: tsChannel, apiKey: tsKey, type: 'fault', results: 10 })
+          }).catch(err => console.error("NeonDB sync error:", err));
+
           const latestFault = faultData.feeds; // <-- RESTORED the index fix!
           
           if (latestFault.entry_id !== lastEntryRef.current) {
             lastEntryRef.current = latestFault.entry_id;
-            
+
             const hardwarePoleId = latestFault.field1;
             const hardwareStatus = latestFault.field2;
-            
+
             if (hardwarePoleId && hardwareStatus) {
               const formattedPoleId = hardwarePoleId.toString().startsWith('P-') ? hardwarePoleId : `P-${hardwarePoleId}`;
               const currentStatus = hardwareStatus.toString() === "1" ? "Down" : "Up";
-              
+
               // --- UPDATE 1: The Main Streetlights Collection ---
               const poleRef = doc(db, 'streetlights', formattedPoleId);
               await setDoc(poleRef, {
                 id: formattedPoleId,
                 status: currentStatus,
-                location: "Hardware Node", 
+                location: "Hardware Node",
                 area: "Active Test Zone",
                 uptime: currentStatus === "Up" ? 100 : 99.9,
-                lastUpdate: new Date(latestFault.created_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+                lastUpdate: new Date(latestFault.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
                 baseLeft: Math.floor(Math.random() * 55) + 20,
                 baseTop: Math.floor(Math.random() * 55) + 20
               }, { merge: true });
@@ -127,33 +134,56 @@ export default function App() {
               // --- UPDATE 2: The Specific Faults Collection Document ---
               const isFaulty = hardwareStatus.toString() === "1"; // Evaluates to true if fault, false if healthy
               const faultTrackerRef = doc(db, 'faults', 'YJFhA9C7N0Qef2s2w3p3'); // Your exact document ID
-              
+
               await setDoc(faultTrackerRef, {
                 faultStatus: {
                   [hardwarePoleId.toString()]: isFaulty // Updates the specific pole key dynamically
                 }
               }, { merge: true }); // Merge ensures other poles in the map are not deleted
 
+              if (currentStatus === "Down") {
+                fetch('/api/send-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    poleId: formattedPoleId,
+                    status: currentStatus,
+                    timestamp: new Date(latestFault.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  })
+                })
+                .then(res => {
+                  if (!res.ok) console.error("Failed to send email alert");
+                })
+                .catch(err => console.error("Error triggering email alert:", err));
+              }
+
               setSyncStatus(`Updated ${formattedPoleId} to ${currentStatus}`);
             }
           } else {
-             setSyncStatus(`Checked at ${new Date().toLocaleTimeString()} (No changes)`);
+            setSyncStatus(`Checked at ${new Date().toLocaleTimeString()} (No changes)`);
           }
         }
 
         // 2. Fetch Traffic Data
         const trafficRes = await fetch(`https://api.thingspeak.com/channels/3405925/feeds.json?api_key=HIG3SCTF2JAF0M4X&results=1`);
         const trafficFeed = await trafficRes.json();
-        
+
         if (trafficFeed.feeds && trafficFeed.feeds.length > 0) {
+          // Sync traffic readings to NeonDB
+          fetch('/api/sync-readings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelId: '3405925', apiKey: 'HIG3SCTF2JAF0M4X', type: 'traffic', results: 10 })
+          }).catch(err => console.error("NeonDB traffic sync error:", err));
+
           const latestTraffic = trafficFeed.feeds; // <-- RESTORED the index fix!
-          
+
           if (latestTraffic.entry_id !== lastTrafficEntryRef.current) {
-             lastTrafficEntryRef.current = latestTraffic.entry_id;
-             setTrafficData({
-                 count: parseInt(latestTraffic.field1) || 0,
-                 density: parseInt(latestTraffic.field2) || 1
-             });
+            lastTrafficEntryRef.current = latestTraffic.entry_id;
+            setTrafficData({
+              count: parseInt(latestTraffic.field1) || 0,
+              density: parseInt(latestTraffic.field2) || 1
+            });
           }
         }
 
@@ -236,7 +266,7 @@ export default function App() {
   return (
     <div className={`flex min-h-screen font-sans transition-colors duration-300 ${bgTheme}`}>
       <Sidebar isDarkMode={isDarkMode} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeView={activeView} setActiveView={setActiveView} faultCount={activeFaultCount} onLogout={() => setUser(null)} />
-      
+
       <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-8 lg:pl-[280px] transition-all duration-300">
         <header className={`flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 p-3 sm:p-4 rounded-xl border ${headerTheme}`}>
           <div className="flex items-center justify-between w-full xl:w-auto">
@@ -261,7 +291,7 @@ export default function App() {
                 <input type="text" placeholder="API Key" value={tsKey} onChange={(e) => setTsKey(e.target.value)} className={`w-24 sm:w-32 text-xs bg-transparent focus:outline-none ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`} />
               </div>
               <button onClick={() => setIsPolling(!isPolling)} className={`flex items-center gap-1 px-2 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap ${isPolling ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/30'}`}>
-                {isPolling ? <><Wifi size={12} className="hidden sm:block"/> Syncing</> : <><CloudOff size={12} className="hidden sm:block"/> Stopped</>}
+                {isPolling ? <><Wifi size={12} className="hidden sm:block" /> Syncing</> : <><CloudOff size={12} className="hidden sm:block" /> Stopped</>}
               </button>
             </div>
 
@@ -277,7 +307,7 @@ export default function App() {
                   <PlusCircle size={14} /> <span className="hidden sm:inline">Add Pole</span>
                 </button>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className="hidden xl:block focus:outline-none hover:scale-110">
                   {isDarkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-slate-600" />}
@@ -301,7 +331,7 @@ export default function App() {
         {activeView === "Dashboard" && (
           <>
             <StatsOverview poles={filteredPoles} isDarkMode={isDarkMode} trafficData={trafficData} />
-            
+
             <div className={`mb-4 p-3 rounded-xl border flex flex-col lg:flex-row flex-wrap gap-3 items-stretch lg:items-center ${headerTheme}`}>
               <div className="relative flex-1 min-w-full lg:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
