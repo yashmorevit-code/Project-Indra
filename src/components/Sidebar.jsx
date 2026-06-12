@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LayoutDashboard, Map, ShieldAlert, Bell, PieChart, FileText, Settings, LogOut, CloudRain, ChevronDown, ChevronUp, X } from 'lucide-react';
 
-export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeView, setActiveView, faultCount }) {
+export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeView, setActiveView, faultCount, onLogout }) {
   const [reportsOpen, setReportsOpen] = useState(true);
 
   const bgClass = isDarkMode ? "bg-[#0B1121] border-slate-800" : "bg-white border-slate-200";
@@ -28,21 +28,27 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
 
       <aside className={`fixed top-0 left-0 h-full w-64 border-r flex flex-col z-50 transition-transform duration-300 ease-in-out ${bgClass} ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex items-center justify-between p-6 mb-2">
+          
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]">
-              IN
+            {/* UPDATED LOGO IMAGE PATH */}
+            <div className="h-9 w-9 shrink-0 rounded-[10px] overflow-hidden shadow-[0_0_15px_rgba(99,102,241,0.3)] border border-slate-700/50">
+              <img 
+                src="/logo.jpg" 
+                alt="Project Indra Logo" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <span className={`font-bold text-[15px] block leading-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Project Indra</span>
               <span className="text-[9px] text-slate-400 uppercase tracking-widest mt-1.5 block">Fault Detection</span>
             </div>
           </div>
+          
           <button onClick={() => setIsOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
             <X size={20} />
           </button>
         </div>
         
-        {/* INCREASED PADDING HERE: px-3 -> px-5 */}
         <nav className="flex-1 space-y-1.5 px-5 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {menuItems.map((item) => {
             const isActive = activeView === item.label;
@@ -100,13 +106,12 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
           </button>
           
           <div className="pt-6 mb-4">
-              <button className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-medium transition-all border border-transparent ${textClass} ${hoverClass}`}>
+              <button onClick={onLogout} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-medium transition-all border border-transparent text-rose-500 hover:bg-rose-500/10`}>
                   <LogOut size={20} /> Logout
               </button>
           </div>
         </nav>
 
-        {/* FIXED ALIGNMENT FOR WIDGET: mx-5 mb-5 */}
         <div className={`p-4 mx-5 mb-5 rounded-xl border transition-colors ${isDarkMode ? 'bg-[#111827] border-slate-800/50 shadow-lg' : 'bg-slate-50 border-slate-200'}`}>
           <div className="flex items-center gap-3 mb-3">
               <CloudRain size={26} className="text-blue-500" />
