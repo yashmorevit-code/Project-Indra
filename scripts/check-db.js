@@ -22,7 +22,7 @@ async function main() {
   try {
     const countResult = await sql`SELECT COUNT(*)::int as count FROM fault_readings;`;
     console.log("Total rows in fault_readings:", countResult[0].count);
-    
+
     if (countResult[0].count > 0) {
       const sample = await sql`SELECT * FROM fault_readings LIMIT 5;`;
       console.log("Sample records:", sample);

@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Zap, TrendingDown, Leaf, RefreshCw } from 'lucide-react';
 
-export default function EnergyUsage({ isDarkMode }) {
+export default function EnergyUsage({ isDarkMode, lastFetchTime }) {
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [error, setError] = useState(null);
 
   const fetchMetrics = async () => {
-    setLoading(true);
+    if (!analyticsData) {
+      setLoading(true);
+    } else {
+      setIsUpdating(true);
+    }
     setError(null);
     try {
       const res = await fetch('/api/energy-analytics');
@@ -23,12 +28,13 @@ export default function EnergyUsage({ isDarkMode }) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setIsUpdating(false);
     }
   };
 
   useEffect(() => {
     fetchMetrics();
-  }, []);
+  }, [lastFetchTime]);
 
   const bgTheme = isDarkMode ? 'bg-[#111827] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const cardBg = isDarkMode ? 'bg-[#0A0F1C] border-slate-700/50' : 'bg-slate-50 border-slate-200';
@@ -84,7 +90,7 @@ export default function EnergyUsage({ isDarkMode }) {
           </div>
         </div>
         <button onClick={fetchMetrics} className={`p-2 rounded-lg border transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
-          <RefreshCw size={16} />
+          <RefreshCw size={16} className={isUpdating ? "animate-spin text-indigo-500" : ""} />
         </button>
       </div>
 

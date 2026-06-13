@@ -15,6 +15,7 @@ import AlertsView from './components/AlertsView';
 import SettingsView from './components/SettingsView';
 import UptimeReport from './components/UptimeReport';
 import EnergyUsage from './components/EnergyUsage';
+import TrafficAnalytics from './components/TrafficAnalytics';
 import { UptimeChart, EnergyChart } from './components/MiniChartsPanel';
 import CreateEmployeeModal from './components/CreateEmployee';
 import EmployeeDashboard from './components/EmployeeDashboard';
@@ -55,11 +56,16 @@ export default function App() {
 
   const [tsChannel, setTsChannel] = useState(() => localStorage.getItem('tsChannel') || "3404790");
   const [tsKey, setTsKey] = useState(() => localStorage.getItem('tsKey') || "XKQE4UZ44V309M9Y");
-  const [isPolling, setIsPolling] = useState(() => localStorage.getItem('isPolling') === 'true');
+  const [isPolling, setIsPolling] = useState(() => {
+    const stored = localStorage.getItem('isPolling');
+    return stored === null ? true : stored === 'true';
+  });
+  const [secondsUntilFetch, setSecondsUntilFetch] = useState(20);
   const [syncStatus, setSyncStatus] = useState("Waiting...");
   const [isTsOffline, setIsTsOffline] = useState(false);
   const simulatedFeedRef = useRef(null);
   const [triggerPollCount, setTriggerPollCount] = useState(0);
+  const [lastFetchTime, setLastFetchTime] = useState(Date.now());
 
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
   const polesRef = useRef([]);
@@ -198,7 +204,9 @@ export default function App() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channelId: tsChannel, apiKey: tsKey, type: 'fault', results: 10 })
-          }).catch(err => console.error("NeonDB sync error:", err));
+          })
+            .then(() => setLastFetchTime(Date.now()))
+            .catch(err => console.error("NeonDB sync error:", err));
 
           const latestFault = faultData.feeds[faultData.feeds.length - 1];
 
@@ -287,7 +295,9 @@ export default function App() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channelId: '3405925', apiKey: 'HIG3SCTF2JAF0M4X', type: 'traffic', results: 10 })
-          }).catch(err => console.error("NeonDB traffic sync error:", err));
+          })
+            .then(() => setLastFetchTime(Date.now()))
+            .catch(err => console.error("NeonDB traffic sync error:", err));
 
           const latestTraffic = trafficFeed.feeds[trafficFeed.feeds.length - 1];
 
@@ -340,15 +350,38 @@ export default function App() {
     };
 
     if (isPolling) {
-      setSyncStatus("Connecting...");
       pollThingSpeak();
-      intervalId = setInterval(pollThingSpeak, 20000);
     } else {
       setSyncStatus("Stopped");
       setIsTsOffline(false);
     }
-    return () => clearInterval(intervalId);
   }, [isPolling, tsChannel, tsKey, triggerPollCount]);
+
+  // Telemetry Polling Countdown timer
+  useEffect(() => {
+    if (!isPolling) {
+      setSecondsUntilFetch(20);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setSecondsUntilFetch(prev => {
+        if (prev <= 1) {
+          setTriggerPollCount(c => c + 1);
+          return 20;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isPolling]);
+
+  const handleTogglePolling = () => {
+    const nextVal = !isPolling;
+    setIsPolling(nextVal);
+    localStorage.setItem('isPolling', nextVal.toString());
+  };
 
   const handleNukeDatabase = async () => {
     if (window.confirm("WARNING: This will permanently delete ALL poles from Firebase. Use this to clear fake data! Proceed?")) {
@@ -455,7 +488,48 @@ export default function App() {
 
         {activeView === "Dashboard" && (
           <>
-            <StatsOverview poles={processedPoles.filter(p => p.area === "Zone 1")} isDarkMode={isDarkMode} trafficData={trafficData} />
+            <StatsOverview poles={processedPoles.filter(p => p.area === "Zone 1")} isDarkMode={isDarkMode} trafficData={trafficData} isTsOffline={isTsOffline} />
+
+            {/* Telemetry Polling Control Panel */}
+            <div className={`mb-4 p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${headerTheme}`}>
+              <div className="flex items-center gap-3">
+                <div className="relative flex items-center justify-center">
+                  <div className={`h-3 w-3 rounded-full ${isPolling ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  {isPolling && <div className="absolute h-3 w-3 rounded-full bg-emerald-500 animate-ping opacity-75" />}
+                </div>
+                <div>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>Telemetry Engine</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
+                    {isPolling ? `Polling active. Next fetch in ${secondsUntilFetch}s.` : 'Polling suspended.'} {syncStatus && `(${syncStatus})`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleTogglePolling}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                    isPolling
+                      ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                  }`}
+                >
+                  {isPolling ? 'Pause Polling' : 'Start Polling'}
+                </button>
+                {isPolling && (
+                  <button
+                    onClick={() => {
+                      setTriggerPollCount(c => c + 1);
+                      setSecondsUntilFetch(20);
+                    }}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    Fetch Now
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className={`mb-4 p-3 rounded-xl border flex flex-col lg:flex-row flex-wrap gap-3 items-stretch lg:items-center ${headerTheme}`}>
               <div className="relative flex-1 min-w-full lg:min-w-[200px]">
@@ -478,7 +552,7 @@ export default function App() {
                 {selectedPole ? (
                   <PoleDetailCard pole={selectedPole} onClose={() => setSelectedPole(null)} isDarkMode={isDarkMode} />
                 ) : (
-                  <FaultPanel poles={filteredPoles} isDarkMode={isDarkMode} />
+                  <FaultPanel poles={filteredPoles.filter(p => p.area === "Zone 1")} isDarkMode={isDarkMode} />
                 )}
               </div>
             </div>
@@ -503,7 +577,8 @@ export default function App() {
         {activeView === "Maintenance Logs" && <HistoryPanel history={history} isDarkMode={isDarkMode} />}
         {activeView === "Settings" && <SettingsView isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
         {activeView === "Uptime Report" && <UptimeReport poles={processedPoles} isDarkMode={isDarkMode} />}
-        {activeView === "Energy Usage" && <EnergyUsage poles={processedPoles} isDarkMode={isDarkMode} />}
+        {activeView === "Energy Usage" && <EnergyUsage isDarkMode={isDarkMode} lastFetchTime={lastFetchTime} />}
+        {activeView === "Traffic Analytics" && <TrafficAnalytics poles={processedPoles} isDarkMode={isDarkMode} lastFetchTime={lastFetchTime} />}
 
         <AddPoleModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={handleAddPole} isDarkMode={isDarkMode} />
         <CreateEmployeeModal isOpen={isEmployeeModalOpen} onClose={() => setIsEmployeeModalOpen(false)} isDarkMode={isDarkMode} />

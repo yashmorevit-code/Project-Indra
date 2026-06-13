@@ -39,15 +39,22 @@ export default function FaultPanel({ poles, isDarkMode }) {
             </tr>
           </thead>
           <tbody className={`${textPrimary} divide-y ${isDarkMode ? 'divide-slate-800/50' : 'divide-slate-100'}`}>
-            {anomalies.map(pole => (
-              <tr key={pole.id} className={isDarkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
-                <td className="py-3 text-indigo-500 font-mono font-medium">{pole.id}</td>
-                <td className="py-3">{pole.location}</td>
-                <td className="py-3">
-                  <span className="px-2 py-0.5 rounded font-medium text-[9px] border bg-rose-500/10 text-rose-500 border-rose-500/20">
-                    High
-                  </span>
-                </td>
+            {anomalies.map(pole => {
+              const priority = pole.area === "Zone 3" 
+                ? { text: "Low", classes: "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400" }
+                : pole.area === "Zone 2"
+                ? { text: "Medium", classes: "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400" }
+                : { text: "High", classes: "bg-rose-500/10 text-rose-600 border-rose-500/20 dark:text-rose-400" };
+
+              return (
+                <tr key={pole.id} className={isDarkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                  <td className="py-3 text-indigo-500 font-mono font-medium">{pole.id}</td>
+                  <td className="py-3">{pole.location}</td>
+                  <td className="py-3">
+                    <span className={`px-2 py-0.5 rounded font-medium text-[9px] border ${priority.classes}`}>
+                      {priority.text}
+                    </span>
+                  </td>
                 <td className="py-3 text-right">
                   {/* The new Dispatch Button */}
                   <button 
@@ -58,7 +65,8 @@ export default function FaultPanel({ poles, isDarkMode }) {
                   </button>
                 </td>
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
         {anomalies.length === 0 && (

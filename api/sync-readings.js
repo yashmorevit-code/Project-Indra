@@ -102,21 +102,34 @@ export default async function handler(req, res) {
         );
       `;
 
+      // Safely run migration to add zone column to traffic_readings
+      await sql`
+        ALTER TABLE traffic_readings ADD COLUMN IF NOT EXISTS zone VARCHAR(50);
+      `;
+
+      // Set default zone for existing records
+      await sql`
+        UPDATE traffic_readings SET zone = 'Zone 1' WHERE zone IS NULL;
+      `;
+
       // Insert traffic feeds
       for (const feed of tsData.feeds) {
         if (!feed.field1 || !feed.field2) continue; // Skip incomplete feeds
 
         const createdAt = new Date(feed.created_at).toISOString();
+        const entryId = parseInt(feed.entry_id);
         const vehicleCount = parseInt(feed.field1) || 0;
         const trafficDensity = parseInt(feed.field2) || 0;
 
+        // 1. Insert Zone 1 traffic (real ThingSpeak telemetry)
         const result = await sql`
-          INSERT INTO traffic_readings (entry_id, created_at, vehicle_count, traffic_density)
+          INSERT INTO traffic_readings (entry_id, created_at, vehicle_count, traffic_density, zone)
           VALUES (
-            ${parseInt(feed.entry_id)},
+            ${entryId},
             ${createdAt},
             ${vehicleCount},
-            ${trafficDensity}
+            ${trafficDensity},
+            'Zone 1'
           )
           ON CONFLICT (entry_id) DO NOTHING
           RETURNING entry_id;
@@ -125,6 +138,36 @@ export default async function handler(req, res) {
         if (result.length > 0) {
           insertedCount++;
         }
+
+        // 2. Insert Zone 2 traffic (simulated based on Zone 1 with variation)
+        const vCountZone2 = Math.round(vehicleCount * (0.6 + Math.random() * 0.8));
+        const densityZone2 = Math.min(10, Math.max(1, Math.round(trafficDensity + (Math.random() - 0.5) * 3)));
+        await sql`
+          INSERT INTO traffic_readings (entry_id, created_at, vehicle_count, traffic_density, zone)
+          VALUES (
+            ${entryId + 1000000},
+            ${createdAt},
+            ${vCountZone2},
+            ${densityZone2},
+            'Zone 2'
+          )
+          ON CONFLICT (entry_id) DO NOTHING;
+        `;
+
+        // 3. Insert Zone 3 traffic (simulated based on Zone 1 with variation)
+        const vCountZone3 = Math.round(vehicleCount * (0.4 + Math.random() * 0.6));
+        const densityZone3 = Math.min(10, Math.max(1, Math.round(trafficDensity + (Math.random() - 0.5) * 4)));
+        await sql`
+          INSERT INTO traffic_readings (entry_id, created_at, vehicle_count, traffic_density, zone)
+          VALUES (
+            ${entryId + 2000000},
+            ${createdAt},
+            ${vCountZone3},
+            ${densityZone3},
+            'Zone 3'
+          )
+          ON CONFLICT (entry_id) DO NOTHING;
+        `;
       }
     }
 

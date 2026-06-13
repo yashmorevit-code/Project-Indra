@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, Map, ShieldAlert, Bell, PieChart, FileText, Settings, LogOut, CloudRain, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { LayoutDashboard, Map, ShieldAlert, Bell, PieChart, FileText, Settings, LogOut, ChevronDown, ChevronUp, X, Car } from 'lucide-react';
 
 export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeView, setActiveView, faultCount, onLogout }) {
   const [reportsOpen, setReportsOpen] = useState(true);
@@ -12,6 +12,7 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
     { icon: <LayoutDashboard size={20} />, label: "Dashboard" },
     { icon: <Map size={20} />, label: "Streetlight Map" },
     { icon: <ShieldAlert size={20} />, label: "Fault Detection" },
+    { icon: <Car size={20} />, label: "Traffic Analytics" },
     { icon: <PieChart size={20} />, label: "Analytics & Charts" },
   ];
 
@@ -56,10 +57,10 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
               <button 
                 key={item.label}
                 onClick={() => handleNavClick(item.label)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] transition-all ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] transition-all border ${
                   isActive 
-                    ? 'font-semibold bg-[#171b36] text-indigo-400 border border-indigo-500/30 shadow-sm' 
-                    : `font-medium ${textClass} ${hoverClass} border border-transparent`
+                    ? (isDarkMode ? 'font-semibold bg-indigo-500/10 text-indigo-400 border-indigo-500/30 shadow-sm' : 'font-semibold bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm') 
+                    : `font-medium ${textClass} ${hoverClass} border-transparent`
                 }`}
               >
                 {item.icon} {item.label}
@@ -69,8 +70,10 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
 
           <button 
             onClick={() => handleNavClick("Alerts")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[15px] transition-all border border-transparent ${
-              activeView === "Alerts" ? 'font-semibold bg-[#171b36] text-indigo-400 border-indigo-500/30 shadow-sm' : `font-medium ${textClass} ${hoverClass}`
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[15px] transition-all border ${
+              activeView === "Alerts" 
+                ? (isDarkMode ? 'font-semibold bg-indigo-500/10 text-indigo-400 border-indigo-500/30 shadow-sm' : 'font-semibold bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm') 
+                : `font-medium ${textClass} ${hoverClass} border-transparent`
             }`}
           >
             <div className="flex items-center gap-3"><Bell size={20} /> Alerts</div>
@@ -91,7 +94,9 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
                    <button 
                      key={subItem} onClick={() => handleNavClick(subItem)}
                      className={`w-full text-left text-[13.5px] font-medium py-1.5 transition-colors flex items-center gap-2 ${
-                       activeView === subItem ? 'text-indigo-400 font-semibold' : (isDarkMode ? 'text-slate-400 hover:text-indigo-400' : 'text-slate-500 hover:text-indigo-600')
+                       activeView === subItem 
+                         ? (isDarkMode ? 'text-indigo-400 font-semibold' : 'text-indigo-600 font-semibold') 
+                         : (isDarkMode ? 'text-slate-400 hover:text-indigo-400' : 'text-slate-500 hover:text-indigo-600')
                      }`}
                    >
                      <span className="text-[18px] leading-none mb-1">•</span> {subItem}
@@ -112,19 +117,6 @@ export default function Sidebar({ isDarkMode = true, isOpen, setIsOpen, activeVi
           </div>
         </nav>
 
-        <div className={`p-4 mx-5 mb-5 rounded-xl border transition-colors ${isDarkMode ? 'bg-[#111827] border-slate-800/50 shadow-lg' : 'bg-slate-50 border-slate-200'}`}>
-          <div className="flex items-center gap-3 mb-3">
-              <CloudRain size={26} className="text-blue-500" />
-              <div>
-                  <p className={`font-bold text-[17px] leading-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>24°C</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Light Rain, Mumbai</p>
-              </div>
-          </div>
-          <div className="text-[10px] text-slate-400 space-y-1.5 pt-2 border-t border-slate-700/50">
-              <div className="flex justify-between items-center"><span>Humidity:</span> <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>82%</span></div>
-              <div className="flex justify-between items-center"><span>Wind:</span> <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>12 km/h</span></div>
-          </div>
-        </div>
       </aside>
     </>
   );
