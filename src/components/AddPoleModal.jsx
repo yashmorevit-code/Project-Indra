@@ -58,10 +58,9 @@ export default function AddPoleModal({ isOpen, onClose, onAdd, isDarkMode }) {
               className={`w-full p-2.5 rounded-lg border focus:outline-none text-xs transition-all ${inputBg}`}
             >
               <option value="">Select Zone...</option>
-              <option value="North Zone">North Zone</option>
-              <option value="Central Zone">Central Zone</option>
-              <option value="South Zone">South Zone</option>
-              <option value="Transit Zone">Transit Zone</option>
+              <option value="Zone 1">Zone 1</option>
+              <option value="Zone 2">Zone 2</option>
+              <option value="Zone 3">Zone 3</option>
             </select>
           </div>
 

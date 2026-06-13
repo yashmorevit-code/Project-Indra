@@ -38,8 +38,9 @@ export default function SettingsView({ isDarkMode, setIsDarkMode }) {
               <label className={`block mb-1.5 font-medium ${textSecondary}`}>Assigned Zone</label>
               <select className={`w-full p-2.5 rounded-lg border focus:outline-none focus:border-indigo-500 ${inputBg}`}>
                 <option>All Zones (Global)</option>
-                <option>North Zone</option>
-                <option>Central Zone</option>
+                <option>Zone 1</option>
+                <option>Zone 2</option>
+                <option>Zone 3</option>
               </select>
             </div>
           </div>

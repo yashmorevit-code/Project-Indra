@@ -49,9 +49,12 @@ export default async function handler(req, res) {
         );
       `;
 
-      // Safely run migration to add node_uptime if table already exists
+      // Safely run migrations to add new columns if table already exists
       await sql`
         ALTER TABLE fault_readings ADD COLUMN IF NOT EXISTS node_uptime INT;
+      `;
+      await sql`
+        ALTER TABLE fault_readings ADD COLUMN IF NOT EXISTS zone VARCHAR(50);
       `;
 
       // Insert fault feeds
@@ -62,14 +65,23 @@ export default async function handler(req, res) {
         const poleId = feed.field1.toString().startsWith('P-') ? feed.field1 : `P-${feed.field1}`;
         const statusVal = parseInt(feed.field2);
 
+        const poleNum = parseInt(poleId.replace('P-', ''));
+        let zoneVal = 'Zone 1';
+        if (poleNum >= 4 && poleNum <= 6) {
+          zoneVal = 'Zone 2';
+        } else if (poleNum >= 7 && poleNum <= 9) {
+          zoneVal = 'Zone 3';
+        }
+
         const result = await sql`
-          INSERT INTO fault_readings (entry_id, created_at, pole_id, status, node_uptime)
+          INSERT INTO fault_readings (entry_id, created_at, pole_id, status, node_uptime, zone)
           VALUES (
             ${parseInt(feed.entry_id)},
             ${createdAt},
             ${poleId},
             ${statusVal},
-            ${feed.field3 ? parseInt(feed.field3) : null}
+            ${feed.field3 ? parseInt(feed.field3) : null},
+            ${zoneVal}
           )
           ON CONFLICT (entry_id) DO NOTHING
           RETURNING entry_id;

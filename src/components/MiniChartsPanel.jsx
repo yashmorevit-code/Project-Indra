@@ -60,8 +60,8 @@ export function UptimeChart({ isDarkMode, poles = [] }) {
         <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <LineChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-            <XAxis dataKey="time" stroke={textColor} tickLine={false} axisLine={false} minTickGap={20} />
-            <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={[0, 100]} />
+            <XAxis dataKey="time" stroke={textColor} tickLine={false} axisLine={false} minTickGap={20} style={{ fontSize: '9px' }} />
+            <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={[0, 100]} style={{ fontSize: '9px' }} />
             <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
             <Line type="stepAfter" dataKey="uptime" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#3b82f6', stroke: isDarkMode ? '#0f172a' : '#fff' }} isAnimationActive={false} />
           </LineChart>
@@ -112,8 +112,8 @@ export function EnergyChart({ isDarkMode, poles = [] }) {
         <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <LineChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-            <XAxis dataKey="time" stroke={textColor} tickLine={false} axisLine={false} minTickGap={20} />
-            <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+            <XAxis dataKey="time" stroke={textColor} tickLine={false} axisLine={false} minTickGap={20} style={{ fontSize: '9px' }} />
+            <YAxis stroke={textColor} tickLine={false} axisLine={false} domain={[0, 'auto']} style={{ fontSize: '9px' }} />
             <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: '8px', color: isDarkMode ? '#fff' : '#000' }} />
             <Line type="stepAfter" dataKey="energy" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#10b981', stroke: isDarkMode ? '#0f172a' : '#fff' }} isAnimationActive={false} />
           </LineChart>
